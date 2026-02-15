@@ -60,7 +60,10 @@ export default function BookmarkDashboard({ user }: { user: any }) {
           if (payload.eventType === "INSERT") {
             const newItem = payload.new as Bookmark;
             if (newItem.user_id === user.id) {
-              setBookmarks((prev) => [newItem, ...prev]);
+              setBookmarks((prev) => {
+                if (prev.some((b) => b.id === newItem.id)) return prev;
+                return [newItem, ...prev];
+              });
             }
           } else if (payload.eventType === "DELETE") {
             setBookmarks((prev) => prev.filter((b) => b.id !== payload.old.id));
@@ -79,13 +82,16 @@ export default function BookmarkDashboard({ user }: { user: any }) {
     if (!url || !title) return;
     setSubmitting(true);
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("bookmarks")
-      .insert([{ url, title, user_id: user.id }]);
+      .insert([{ url, title, user_id: user.id }])
+      .select()
+      .single();
 
     if (error) {
       alert(error.message);
-    } else {
+    } else if (data) {
+      setBookmarks((prev) => [data as Bookmark, ...prev]);
       setUrl("");
       setTitle("");
     }
@@ -93,6 +99,7 @@ export default function BookmarkDashboard({ user }: { user: any }) {
   };
 
   const deleteBookmark = async (id: string) => {
+    setBookmarks((prev) => prev.filter((b) => b.id !== id));
     await supabase.from("bookmarks").delete().match({ id });
   };
 
